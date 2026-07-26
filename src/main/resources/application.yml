@@ -1,0 +1,26 @@
+spring:
+  application:
+    name: axiom
+  datasource:
+    url: jdbc:postgresql://localhost:5432/axiom
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+
+server:
+  port: 8080
+
+axiom:
+  jwt:
+    secret: ${JWT_SECRET:this-is-a-dev-only-secret-replace-with-256-bit-random-value}
+    expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+  admin:
+    email: ${ADMIN_EMAIL:admin@axiom.local}
+    password: ${ADMIN_PASSWORD:ChangeMe123!}
