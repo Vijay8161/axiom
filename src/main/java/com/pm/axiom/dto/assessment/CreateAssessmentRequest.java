@@ -1,9 +1,14 @@
 package com.pm.axiom.dto.assessment;
 
+import com.pm.axiom.dto.section.CreateSectionRequest;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
+
+import java.util.List;
 
 public record CreateAssessmentRequest(
 
@@ -16,5 +21,9 @@ public record CreateAssessmentRequest(
 
         @NotNull(message = "Duration is required")
         @Positive(message = "Duration must be greater than zero")
-        Integer durationMinutes
+        Integer durationMinutes,
+
+        @NotEmpty(message = "An assessment must contain at least one section")
+        @Valid
+        List<CreateSectionRequest> sections
 ) {}
