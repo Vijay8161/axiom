@@ -19,4 +19,13 @@ public interface AssessmentRepository extends JpaRepository<Assessment, Long> {
 
     @Query("SELECT a FROM Assessment a JOIN FETCH a.createdBy WHERE a.id = :id")
     Optional<Assessment> findByIdWithCreatedBy(@Param("id") Long id);
+
+    /** One collection fetch (sections) + one single-valued fetch (createdBy) — safe.
+     MultipleBagFetchException only fires on 2+ COLLECTION fetches. Section.questions
+     and (for MCQ) Question.options load via batch fetching (see application.yml). */
+    @Query("SELECT DISTINCT a FROM Assessment a " +
+            "JOIN FETCH a.sections " +
+            "JOIN FETCH a.createdBy " +
+            "WHERE a.id = :id")
+    Optional<Assessment> findByIdWithSections(@Param("id") Long id);
 }

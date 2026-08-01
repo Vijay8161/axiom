@@ -2,106 +2,103 @@ package com.pm.axiom.service.question;
 
 import com.pm.axiom.dto.question.CreateQuestionRequest;
 import com.pm.axiom.dto.question.QuestionResponse;
+import com.pm.axiom.dto.question.UpdateCodingQuestionRequest;
+import com.pm.axiom.dto.question.UpdateDescriptiveQuestionRequest;
+import com.pm.axiom.dto.question.UpdateMCQQuestionRequest;
 import com.pm.axiom.dto.question.UpdateQuestionRequest;
-import com.pm.axiom.entity.Assessment;
+import com.pm.axiom.entity.CodingQuestion;
+import com.pm.axiom.entity.DescriptiveQuestion;
 import com.pm.axiom.entity.MCQQuestion;
+import com.pm.axiom.entity.Question;
+import com.pm.axiom.entity.Section;
+import com.pm.axiom.exception.BusinessRuleViolationException;
 import com.pm.axiom.exception.ResourceNotFoundException;
 import com.pm.axiom.mapper.QuestionMapper;
-import com.pm.axiom.repository.AssessmentRepository;
-import com.pm.axiom.repository.MCQQuestionRepository;
+import com.pm.axiom.repository.QuestionRepository;
+import com.pm.axiom.repository.SectionRepository;
 import com.pm.axiom.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-
 @Service
 @RequiredArgsConstructor
 public class QuestionService {
 
-    private final MCQQuestionRepository mcqQuestionRepository;
-    private final AssessmentRepository assessmentRepository;
+    private final QuestionRepository questionRepository;
+    private final SectionRepository sectionRepository;
     private final QuestionMapper questionMapper;
 
     @PreAuthorize("hasRole('ADMIN_RECRUITER')")
     @Transactional
-    public QuestionResponse createQuestion(Long assessmentId, CreateQuestionRequest request) {
-        Assessment assessment = getOwnedAssessmentOrThrow(assessmentId);
+    public QuestionResponse createQuestion(Long sectionId, CreateQuestionRequest request) {
+        Section section = getOwnedSectionOrThrow(sectionId);
 
-        MCQQuestion question = MCQQuestion.builder()
-                .assessment(assessment)
-                .question(request.question())
-                .optionA(request.optionA())
-                .optionB(request.optionB())
-                .optionC(request.optionC())
-                .optionD(request.optionD())
-                .correctOption(request.correctOption())
-                .marks(request.marks())
-                .build();
+        Question question = questionMapper.toEntity(request);
+        question.setSection(section);
+        question.setCreatedBy(SecurityUtils.getCurrentRecruiter());
 
-        return questionMapper.toResponse(mcqQuestionRepository.save(question));
-    }
-
-    @Transactional(readOnly = true)
-    public List<QuestionResponse> getQuestionsForAssessment(Long assessmentId) {
-        Assessment assessment = getViewableAssessmentOrThrow(assessmentId);
-
-        return mcqQuestionRepository.findAllByAssessmentIdOrderByIdAsc(assessment.getId())
-                .stream()
-                .map(questionMapper::toResponse)
-                .toList();
+        return questionMapper.toResponse(questionRepository.save(question));
     }
 
     @PreAuthorize("hasRole('ADMIN_RECRUITER')")
     @Transactional
     public QuestionResponse updateQuestion(Long id, UpdateQuestionRequest request) {
-        MCQQuestion question = getOwnedQuestionOrThrow(id);
+        Question question = getOwnedQuestionOrThrow(id);
+        assertTypeMatches(question, request);
 
-        question.setQuestion(request.question());
-        question.setOptionA(request.optionA());
-        question.setOptionB(request.optionB());
-        question.setOptionC(request.optionC());
-        question.setOptionD(request.optionD());
-        question.setCorrectOption(request.correctOption());
-        question.setMarks(request.marks());
-
+        questionMapper.updateEntity(request, question);
         return questionMapper.toResponse(question);
     }
 
     @PreAuthorize("hasRole('ADMIN_RECRUITER')")
     @Transactional
     public void deleteQuestion(Long id) {
-        mcqQuestionRepository.delete(getOwnedQuestionOrThrow(id));
-    }
+        Question question = getOwnedQuestionOrThrow(id);
 
-    private Assessment getViewableAssessmentOrThrow(Long assessmentId) {
-        Assessment assessment = assessmentRepository.findByIdWithCreatedBy(assessmentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Assessment not found with id: " + assessmentId));
-
-        boolean isOwner = assessment.getCreatedBy().getId().equals(SecurityUtils.getCurrentRecruiterId());
-        if (!SecurityUtils.isAdmin() && !isOwner) {
-            throw new ResourceNotFoundException("Assessment not found with id: " + assessmentId);
+        if (question.getSection().getAssessment().isPublished()) {
+            throw new BusinessRuleViolationException(
+                    "Questions cannot be removed from a published assessment — unpublish it first");
         }
-        return assessment;
-    }
 
-    private Assessment getOwnedAssessmentOrThrow(Long assessmentId) {
-        Assessment assessment = assessmentRepository.findByIdWithCreatedBy(assessmentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Assessment not found with id: " + assessmentId));
-
-        if (!assessment.getCreatedBy().getId().equals(SecurityUtils.getCurrentRecruiterId())) {
-            throw new ResourceNotFoundException("Assessment not found with id: " + assessmentId);
+        if (questionRepository.countBySectionId(question.getSection().getId()) <= 1) {
+            throw new BusinessRuleViolationException("A section must contain at least one question");
         }
-        return assessment;
+
+        questionRepository.delete(question);
     }
 
-    private MCQQuestion getOwnedQuestionOrThrow(Long id) {
-        MCQQuestion question = mcqQuestionRepository.findByIdWithAssessmentAndCreatedBy(id)
+    private void assertTypeMatches(Question existing, UpdateQuestionRequest request) {
+        boolean matches = switch (request) {
+            case UpdateMCQQuestionRequest r -> existing instanceof MCQQuestion;
+            case UpdateCodingQuestionRequest r -> existing instanceof CodingQuestion;
+            case UpdateDescriptiveQuestionRequest r -> existing instanceof DescriptiveQuestion;
+        };
+
+        if (!matches) {
+            throw new BusinessRuleViolationException(
+                    "Cannot change question " + existing.getId() + " to type " + request.type()
+                            + " — delete and recreate it instead");
+        }
+    }
+
+    private Section getOwnedSectionOrThrow(Long sectionId) {
+        Section section = sectionRepository.findByIdWithAssessmentAndCreatedBy(sectionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Section not found with id: " + sectionId));
+
+        if (!section.getAssessment().getCreatedBy().getId().equals(SecurityUtils.getCurrentRecruiterId())) {
+            throw new ResourceNotFoundException("Section not found with id: " + sectionId);
+        }
+        return section;
+    }
+
+    private Question getOwnedQuestionOrThrow(Long id) {
+        Question question = questionRepository.findByIdWithSectionAndCreatedBy(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Question not found with id: " + id));
 
-        if (!question.getAssessment().getCreatedBy().getId().equals(SecurityUtils.getCurrentRecruiterId())) {
+        Long ownerId = question.getSection().getAssessment().getCreatedBy().getId();
+        if (!ownerId.equals(SecurityUtils.getCurrentRecruiterId())) {
             throw new ResourceNotFoundException("Question not found with id: " + id);
         }
         return question;

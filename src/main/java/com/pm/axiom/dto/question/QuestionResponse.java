@@ -1,18 +1,27 @@
 package com.pm.axiom.dto.question;
 
-import com.pm.axiom.entity.CorrectOption;
+import com.pm.axiom.entity.Difficulty;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
-import java.time.Instant;
+@JsonTypeInfo(
+        use = JsonTypeInfo.Id.NAME,
+        include = JsonTypeInfo.As.EXISTING_PROPERTY,
+        property = "type"
+)
+@JsonSubTypes({
+        @JsonSubTypes.Type(value = MCQQuestionResponse.class, name = "MCQ"),
+        @JsonSubTypes.Type(value = CodingQuestionResponse.class, name = "CODING"),
+        @JsonSubTypes.Type(value = DescriptiveQuestionResponse.class, name = "DESCRIPTIVE")
+})
+public sealed interface QuestionResponse
+        permits MCQQuestionResponse, CodingQuestionResponse, DescriptiveQuestionResponse {
 
-public record QuestionResponse(
-        Long id,
-        Long assessmentId,
-        String question,
-        String optionA,
-        String optionB,
-        String optionC,
-        String optionD,
-        CorrectOption correctOption,
-        Integer marks,
-        Instant createdAt
-) {}
+    Long id();
+    QuestionType type();
+    String text();
+    Integer marks();
+    Integer displayOrder();
+    Difficulty difficulty();
+    String explanation();
+}

@@ -1,6 +1,7 @@
 package com.pm.axiom.controller.assessment;
 
 import com.pm.axiom.dto.assessment.AssessmentResponse;
+import com.pm.axiom.dto.assessment.AssessmentSummaryResponse;
 import com.pm.axiom.dto.assessment.CreateAssessmentRequest;
 import com.pm.axiom.dto.assessment.UpdateAssessmentRequest;
 import com.pm.axiom.service.assessment.AssessmentService;
@@ -25,7 +26,7 @@ public class AssessmentController {
     }
 
     @GetMapping
-    public ResponseEntity<List<AssessmentResponse>> getAllAssessments() {
+    public ResponseEntity<List<AssessmentSummaryResponse>> getAllAssessments() {
         return ResponseEntity.ok(assessmentService.getAllAssessments());
     }
 

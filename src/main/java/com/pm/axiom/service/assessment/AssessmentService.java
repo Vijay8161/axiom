@@ -1,15 +1,19 @@
 package com.pm.axiom.service.assessment;
 
 import com.pm.axiom.dto.assessment.AssessmentResponse;
+import com.pm.axiom.dto.assessment.AssessmentSummaryResponse;
 import com.pm.axiom.dto.assessment.CreateAssessmentRequest;
 import com.pm.axiom.dto.assessment.UpdateAssessmentRequest;
 import com.pm.axiom.entity.Assessment;
+import com.pm.axiom.entity.Question;
 import com.pm.axiom.entity.Recruiter;
+import com.pm.axiom.entity.Section;
 import com.pm.axiom.exception.BusinessRuleViolationException;
 import com.pm.axiom.exception.ResourceNotFoundException;
 import com.pm.axiom.mapper.AssessmentMapper;
 import com.pm.axiom.repository.AssessmentRepository;
-import com.pm.axiom.repository.MCQQuestionRepository;
+import com.pm.axiom.repository.QuestionRepository;
+import com.pm.axiom.repository.SectionRepository;
 import com.pm.axiom.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -23,54 +27,48 @@ import java.util.List;
 public class AssessmentService {
 
     private final AssessmentRepository assessmentRepository;
-    private final MCQQuestionRepository mcqQuestionRepository;
+    private final SectionRepository sectionRepository;
+    private final QuestionRepository questionRepository;
     private final AssessmentMapper assessmentMapper;
 
     @PreAuthorize("hasRole('ADMIN_RECRUITER')")
     @Transactional
     public AssessmentResponse createAssessment(CreateAssessmentRequest request) {
-        Recruiter currentRecruiter = SecurityUtils.getCurrentRecruiter();
-
-        Assessment assessment = Assessment.builder()
-                .title(request.title())
-                .description(request.description())
-                .durationMinutes(request.durationMinutes())
-                .published(false)
-                .createdBy(currentRecruiter)
-                .build();
+        Assessment assessment = assessmentMapper.toEntity(request);
+        assessment.setPublished(false);
+        stampCreatedBy(assessment, SecurityUtils.getCurrentRecruiter());
 
         Assessment saved = assessmentRepository.save(assessment);
-        return assessmentMapper.toResponse(saved, 0L); // brand new — no questions yet
+        return assessmentMapper.toResponse(saved);
     }
 
     @Transactional(readOnly = true)
-    public List<AssessmentResponse> getAllAssessments() {
+    public List<AssessmentSummaryResponse> getAllAssessments() {
         List<Assessment> assessments = SecurityUtils.isAdmin()
                 ? assessmentRepository.findAllWithCreatedBy()
                 : assessmentRepository.findAllByCreatedBy(SecurityUtils.getCurrentRecruiter());
 
         return assessments.stream()
-                .map(a -> assessmentMapper.toResponse(a, mcqQuestionRepository.countByAssessmentId(a.getId())))
+                .map(a -> assessmentMapper.toSummaryResponse(
+                        a,
+                        (int) sectionRepository.countByAssessmentId(a.getId()),
+                        questionRepository.countBySectionAssessmentId(a.getId())))
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public AssessmentResponse getAssessmentById(Long id) {
-        Assessment assessment = findByIdOrThrow(id);
+        Assessment assessment = findWithSectionsOrThrow(id);
         assertViewable(assessment);
-        return assessmentMapper.toResponse(assessment, mcqQuestionRepository.countByAssessmentId(id));
+        return assessmentMapper.toResponse(assessment);
     }
 
     @PreAuthorize("hasRole('ADMIN_RECRUITER')")
     @Transactional
     public AssessmentResponse updateAssessment(Long id, UpdateAssessmentRequest request) {
-        Assessment assessment = getOwnedAssessmentOrThrow(id);
-
-        assessment.setTitle(request.title());
-        assessment.setDescription(request.description());
-        assessment.setDurationMinutes(request.durationMinutes());
-
-        return assessmentMapper.toResponse(assessment, mcqQuestionRepository.countByAssessmentId(id));
+        Assessment assessment = getOwnedAssessmentWithSectionsOrThrow(id);
+        assessmentMapper.updateEntity(request, assessment);
+        return assessmentMapper.toResponse(assessment);
     }
 
     @PreAuthorize("hasRole('ADMIN_RECRUITER')")
@@ -89,17 +87,34 @@ public class AssessmentService {
     @PreAuthorize("hasRole('ADMIN_RECRUITER')")
     @Transactional
     public AssessmentResponse publishAssessment(Long id) {
-        Assessment assessment = getOwnedAssessmentOrThrow(id);
+        Assessment assessment = getOwnedAssessmentWithSectionsOrThrow(id);
         assessment.setPublished(true);
-        return assessmentMapper.toResponse(assessment, mcqQuestionRepository.countByAssessmentId(id));
+        return assessmentMapper.toResponse(assessment);
     }
 
     @PreAuthorize("hasRole('ADMIN_RECRUITER')")
     @Transactional
     public AssessmentResponse unpublishAssessment(Long id) {
-        Assessment assessment = getOwnedAssessmentOrThrow(id);
+        Assessment assessment = getOwnedAssessmentWithSectionsOrThrow(id);
         assessment.setPublished(false);
-        return assessmentMapper.toResponse(assessment, mcqQuestionRepository.countByAssessmentId(id));
+        return assessmentMapper.toResponse(assessment);
+    }
+
+    /** The whole nested tree (assessment + sections + questions) is created by one recruiter
+     in one call — stamp all of it, not just the root, so audit data is complete. */
+    private void stampCreatedBy(Assessment assessment, Recruiter recruiter) {
+        assessment.setCreatedBy(recruiter);
+        for (Section section : assessment.getSections()) {
+            section.setCreatedBy(recruiter);
+            for (Question question : section.getQuestions()) {
+                question.setCreatedBy(recruiter);
+            }
+        }
+    }
+
+    private Assessment findWithSectionsOrThrow(Long id) {
+        return assessmentRepository.findByIdWithSections(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Assessment not found with id: " + id));
     }
 
     private Assessment findByIdOrThrow(Long id) {
@@ -116,11 +131,17 @@ public class AssessmentService {
 
     private Assessment getOwnedAssessmentOrThrow(Long id) {
         Assessment assessment = findByIdOrThrow(id);
-
         if (!assessment.getCreatedBy().getId().equals(SecurityUtils.getCurrentRecruiterId())) {
             throw new ResourceNotFoundException("Assessment not found with id: " + id);
         }
+        return assessment;
+    }
 
+    private Assessment getOwnedAssessmentWithSectionsOrThrow(Long id) {
+        Assessment assessment = findWithSectionsOrThrow(id);
+        if (!assessment.getCreatedBy().getId().equals(SecurityUtils.getCurrentRecruiterId())) {
+            throw new ResourceNotFoundException("Assessment not found with id: " + id);
+        }
         return assessment;
     }
 }

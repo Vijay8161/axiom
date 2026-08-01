@@ -1,20 +1,18 @@
 package com.pm.axiom.dto.assessment;
 
-import com.pm.axiom.dto.section.SectionResponse;
-
 import java.time.Instant;
-import java.util.List;
 
-/** Full nested tree — used for create/get-by-id, where the caller needs everything. */
-public record AssessmentResponse(
+/** Flat, count-only shape — used for list views, to avoid shipping every question's full text per row. */
+public record AssessmentSummaryResponse(
         Long id,
         String title,
         String description,
         Integer durationMinutes,
         boolean published,
+        int sectionCount,
+        long questionCount,
         Long createdById,
         String createdByName,
         Instant createdAt,
-        Instant updatedAt,
-        List<SectionResponse> sections
+        Instant updatedAt
 ) {}
