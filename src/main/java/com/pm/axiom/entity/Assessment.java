@@ -17,8 +17,8 @@ import java.util.List;
 )
 @Getter
 @Setter
-@NoArgsConstructor
 @SuperBuilder
+@NoArgsConstructor
 public class Assessment extends BaseEntity {
 
     @Id
@@ -38,6 +38,7 @@ public class Assessment extends BaseEntity {
     @Builder.Default
     private boolean published = false;
 
+    @Setter(AccessLevel.NONE)
     @OneToMany(mappedBy = "assessment", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("displayOrder ASC")
     @Builder.Default

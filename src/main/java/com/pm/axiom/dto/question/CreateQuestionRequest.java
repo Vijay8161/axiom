@@ -10,7 +10,8 @@ import com.pm.axiom.dto.question.QuestionType;
 @JsonTypeInfo(
         use = JsonTypeInfo.Id.NAME,
         include = JsonTypeInfo.As.EXISTING_PROPERTY,
-        property = "type"
+        property = "type",
+        visible = true
 )
 @JsonSubTypes({
         @JsonSubTypes.Type(value = CreateMCQQuestionRequest.class, name = "MCQ"),

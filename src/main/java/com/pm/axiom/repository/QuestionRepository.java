@@ -8,12 +8,6 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Typed against the abstract Question base class — works polymorphically across
- * every concrete question type (MCQ, Coding, Descriptive, and any future subclass)
- * with no per-type repository needed. Hibernate resolves the concrete subtype via
- * the question_type discriminator transparently.
- */
 public interface QuestionRepository extends JpaRepository<Question, Long> {
 
     List<Question> findAllBySectionIdOrderByDisplayOrderAsc(Long sectionId);

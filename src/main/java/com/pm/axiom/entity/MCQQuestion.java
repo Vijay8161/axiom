@@ -17,6 +17,7 @@ import java.util.List;
 @NoArgsConstructor
 public class MCQQuestion extends Question {
 
+    @Setter(AccessLevel.NONE)
     @OneToMany(mappedBy = "question", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("displayOrder ASC")
     @Builder.Default

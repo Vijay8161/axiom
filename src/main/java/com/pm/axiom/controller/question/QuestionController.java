@@ -10,25 +10,18 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
 @RestController
 @RequiredArgsConstructor
 public class QuestionController {
 
     private final QuestionService questionService;
 
-    @PostMapping("/api/assessments/{assessmentId}/questions")
+    @PostMapping("/api/sections/{sectionId}/questions")
     public ResponseEntity<QuestionResponse> createQuestion(
-            @PathVariable Long assessmentId,
+            @PathVariable Long sectionId,
             @Valid @RequestBody CreateQuestionRequest request
     ) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(questionService.createQuestion(assessmentId, request));
-    }
-
-    @GetMapping("/api/assessments/{assessmentId}/questions")
-    public ResponseEntity<List<QuestionResponse>> getQuestionsForAssessment(@PathVariable Long assessmentId) {
-        return ResponseEntity.ok(questionService.getQuestionsForAssessment(assessmentId));
+        return ResponseEntity.status(HttpStatus.CREATED).body(questionService.createQuestion(sectionId, request));
     }
 
     @PutMapping("/api/questions/{id}")

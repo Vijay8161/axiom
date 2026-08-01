@@ -4,6 +4,8 @@ import com.pm.axiom.dto.section.CreateSectionRequest;
 import com.pm.axiom.dto.section.SectionResponse;
 import com.pm.axiom.dto.section.UpdateSectionRequest;
 import com.pm.axiom.entity.Assessment;
+import com.pm.axiom.entity.Question;
+import com.pm.axiom.entity.Recruiter;
 import com.pm.axiom.entity.Section;
 import com.pm.axiom.exception.BusinessRuleViolationException;
 import com.pm.axiom.exception.ResourceNotFoundException;
@@ -31,6 +33,7 @@ public class SectionService {
 
         Section section = sectionMapper.toEntity(request);
         section.setAssessment(assessment);
+        stampCreatedBy(section, SecurityUtils.getCurrentRecruiter());
 
         return sectionMapper.toResponse(sectionRepository.save(section));
     }
@@ -58,6 +61,15 @@ public class SectionService {
         }
 
         sectionRepository.delete(section);
+    }
+
+    /** A section created here can itself carry nested questions (see CreateSectionRequest) —
+     stamp those too, same reasoning as AssessmentService.stampCreatedBy. */
+    private void stampCreatedBy(Section section, Recruiter recruiter) {
+        section.setCreatedBy(recruiter);
+        for (Question question : section.getQuestions()) {
+            question.setCreatedBy(recruiter);
+        }
     }
 
     private Assessment getOwnedAssessmentOrThrow(Long assessmentId) {

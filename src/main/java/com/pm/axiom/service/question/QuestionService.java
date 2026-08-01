@@ -37,6 +37,7 @@ public class QuestionService {
 
         Question question = questionMapper.toEntity(request);
         question.setSection(section);
+        question.setCreatedBy(SecurityUtils.getCurrentRecruiter());
 
         return questionMapper.toResponse(questionRepository.save(question));
     }
@@ -68,12 +69,6 @@ public class QuestionService {
         questionRepository.delete(question);
     }
 
-    /**
-     * A question's concrete type is fixed at creation — switching MCQ to Coding (etc.) on update
-     * would mean silently discarding type-specific data (e.g. every MCQ option). Exhaustive switch
-     * over the sealed UpdateQuestionRequest, no default: the compiler forces this to be revisited
-     * whenever a new question type is added.
-     */
     private void assertTypeMatches(Question existing, UpdateQuestionRequest request) {
         boolean matches = switch (request) {
             case UpdateMCQQuestionRequest r -> existing instanceof MCQQuestion;

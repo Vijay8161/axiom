@@ -32,6 +32,7 @@ public class Section extends BaseEntity {
     @Column(name = "display_order", nullable = false)
     private Integer displayOrder;
 
+    @Setter(AccessLevel.NONE)
     @OneToMany(mappedBy = "section", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("displayOrder ASC")
     @Builder.Default

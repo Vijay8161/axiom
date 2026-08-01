@@ -5,7 +5,9 @@ import com.pm.axiom.dto.assessment.AssessmentSummaryResponse;
 import com.pm.axiom.dto.assessment.CreateAssessmentRequest;
 import com.pm.axiom.dto.assessment.UpdateAssessmentRequest;
 import com.pm.axiom.entity.Assessment;
+import com.pm.axiom.entity.Question;
 import com.pm.axiom.entity.Recruiter;
+import com.pm.axiom.entity.Section;
 import com.pm.axiom.exception.BusinessRuleViolationException;
 import com.pm.axiom.exception.ResourceNotFoundException;
 import com.pm.axiom.mapper.AssessmentMapper;
@@ -33,8 +35,8 @@ public class AssessmentService {
     @Transactional
     public AssessmentResponse createAssessment(CreateAssessmentRequest request) {
         Assessment assessment = assessmentMapper.toEntity(request);
-        assessment.setCreatedBy(SecurityUtils.getCurrentRecruiter());
         assessment.setPublished(false);
+        stampCreatedBy(assessment, SecurityUtils.getCurrentRecruiter());
 
         Assessment saved = assessmentRepository.save(assessment);
         return assessmentMapper.toResponse(saved);
@@ -98,6 +100,18 @@ public class AssessmentService {
         return assessmentMapper.toResponse(assessment);
     }
 
+    /** The whole nested tree (assessment + sections + questions) is created by one recruiter
+     in one call — stamp all of it, not just the root, so audit data is complete. */
+    private void stampCreatedBy(Assessment assessment, Recruiter recruiter) {
+        assessment.setCreatedBy(recruiter);
+        for (Section section : assessment.getSections()) {
+            section.setCreatedBy(recruiter);
+            for (Question question : section.getQuestions()) {
+                question.setCreatedBy(recruiter);
+            }
+        }
+    }
+
     private Assessment findWithSectionsOrThrow(Long id) {
         return assessmentRepository.findByIdWithSections(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Assessment not found with id: " + id));
@@ -130,4 +144,4 @@ public class AssessmentService {
         }
         return assessment;
     }
-}}
+}
