@@ -25,4 +25,8 @@ public final class SecurityUtils {
     public static boolean isAdmin() {
         return getCurrentRecruiter().getRole() == Role.ADMIN;
     }
+
+    public static boolean isAdminRecruiter() {
+        return getCurrentRecruiter().getRole() == Role.ADMIN_RECRUITER;
+    }
 }

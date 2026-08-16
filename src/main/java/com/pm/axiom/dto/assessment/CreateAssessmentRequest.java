@@ -21,9 +21,9 @@ public record CreateAssessmentRequest(
 
         @NotNull(message = "Duration is required")
         @Positive(message = "Duration must be greater than zero")
-        Integer durationMinutes,
+        Integer durationMinutes
 
-        @NotEmpty(message = "An assessment must contain at least one section")
-        @Valid
-        List<CreateSectionRequest> sections
+//        @NotEmpty(message = "An assessment must contain at least one section")
+//        @Valid
+//        List<CreateSectionRequest> sections
 ) {}

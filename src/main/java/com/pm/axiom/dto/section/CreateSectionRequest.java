@@ -18,9 +18,5 @@ public record CreateSectionRequest(
 
         @NotNull(message = "Display order is required")
         @PositiveOrZero(message = "Display order must be zero or greater")
-        Integer displayOrder,
-
-        @NotEmpty(message = "A section must contain at least one question")
-        @Valid
-        List<CreateQuestionRequest> questions
+        Integer displayOrder
 ) {}

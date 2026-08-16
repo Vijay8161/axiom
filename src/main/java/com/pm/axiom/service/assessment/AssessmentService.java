@@ -124,7 +124,7 @@ public class AssessmentService {
 
     private void assertViewable(Assessment assessment) {
         boolean isOwner = assessment.getCreatedBy().getId().equals(SecurityUtils.getCurrentRecruiterId());
-        if (!SecurityUtils.isAdmin() && !isOwner) {
+        if (!SecurityUtils.isAdminRecruiter() && !isOwner) {
             throw new ResourceNotFoundException("Assessment not found with id: " + assessment.getId());
         }
     }
